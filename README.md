@@ -1,46 +1,35 @@
 # Terminal Codex
 
-**Painel Linux real**  
-50% VSCode + 50% Termux = **MIL VEZES melhor**.  
-Agora com **shell de verdade** (node-pty + WebSocket).
+**Painel Linux terminal**  
+50% VSCode + 50% Termux = **MIL VEZES melhor**.
 
-Não é HTML de mentira. É terminal real.
+## Versões
 
-## Requisitos
+### 1. Mobile (APP Android) — **foco principal agora**
+Pasta: `mobile/`  
+Projeto Flutter com:
+- Terminal real (xterm + flutter_pty)
+- Teclado virtual grande estilo Termux
+- Quick bar de comandos
+- Sidebar de sessões
+- Tema dark
 
-- Node.js 18+
-- Linux / macOS (Windows funciona mas node-pty é chato)
-
-## Como rodar (PC)
-
+**Como gerar o APK:**
 ```bash
-git clone https://github.com/zynxamigo/terminal-codex.git
-cd terminal-codex
-npm install
-npm start
+cd mobile
+flutter pub get
+flutter build apk --release
 ```
 
-Abre no browser: **http://localhost:3000**
+Veja o README dentro de `mobile/` para mais detalhes.
 
-Pronto. Shell real rodando.
-
-## O que tem
-
-- Terminal real (bash/zsh via node-pty)
-- Layout estilo da imagem (sidebar + system monitor)
-- Teclas virtuais embaixo (ESC, CTRL, setas...)
-- Monitor de CPU/RAM ao vivo
-- Tema dark VSCode
-
-## Mobile
-
-Por enquanto o layout se adapta (some as sidebars).  
-Versão mobile dedicada com teclado grande vem depois.
-
-## Aviso
-
-Isso roda **local**. Não exponha na internet sem autenticação, senão qualquer um toma teu shell.
+### 2. PC (Node.js)
+Versão web com shell real via node-pty + WebSocket.  
+Roda com `npm install && npm start` e abre `http://localhost:3000`.
 
 ---
 
-Agora é terminal de verdade, caralho.
+O foco atual é o **APP de celular**.  
+Ainda tem limitações de PTY no Android puro (o sistema bloqueia bastante). Em emulador ou integrado com Termux funciona melhor.
+
+Qualquer dúvida ou erro na compilação, manda o log.
