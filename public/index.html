@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Linux Panel — Terminal Codex</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d1117;
+      --bg2: #161b22;
+      --bg3: #21262d;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --text2: #8b949e;
+      --green: #3fb950;
+      --blue: #58a6ff;
+      --red: #f85149;
+      --purple: #bc8cff;
+    }
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Cascadia Code', 'Fira Code', monospace;
+      overflow: hidden;
+    }
+
+    /* Layout principal */
+    .app {
+      display: grid;
+      grid-template-columns: 220px 1fr 260px;
+      grid-template-rows: 36px 1fr 28px;
+      height: 100vh;
+    }
+
+    /* Top bar */
+    .topbar {
+      grid-column: 1 / -1;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 16px;
+      font-size: 13px;
+    }
+    .topbar .title { font-weight: 600; letter-spacing: 0.5px; }
+    .topbar .tabs { display: flex; gap: 4px; flex: 1; }
+    .tab {
+      padding: 4px 12px;
+      background: var(--bg3);
+      border-radius: 4px 4px 0 0;
+      border: 1px solid var(--border);
+      border-bottom: none;
+      font-size: 12px;
+      color: var(--text2);
+      cursor: pointer;
+    }
+    .tab.active { background: var(--bg); color: var(--text); }
+    .stats { display: flex; gap: 14px; font-size: 12px; }
+    .stats span { color: var(--text2); }
+    .stats .val { color: var(--green); font-weight: 500; }
+
+    /* Sidebar esquerda */
+    .sidebar {
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .sidebar-section {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-section h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--text2);
+      margin-bottom: 8px;
+      letter-spacing: 0.5px;
+    }
+    .tree { font-size: 13px; }
+    .tree-item {
+      padding: 3px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tree-item:hover { background: var(--bg3); }
+    .tree-item.folder { color: var(--blue); }
+    .tree-item.file { color: var(--text); }
+    .tree-item.active { background: #1f6feb33; }
+
+    /* Terminal central */
+    .main {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      overflow: hidden;
+    }
+    #terminal {
+      flex: 1;
+      padding: 8px;
+    }
+    .term-bottom {
+      height: 42px;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      gap: 6px;
+    }
+    .key {
+      padding: 5px 10px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 11px;
+      color: var(--text2);
+      cursor: pointer;
+      user-select: none;
+    }
+    .key:hover { background: #30363d; color: var(--text); }
+    .key:active { background: var(--blue); color: #fff; }
+
+    /* Sidebar direita - System Monitor */
+    .rightbar {
+      background: var(--bg2);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      font-size: 12px;
+    }
+    .rightbar-section {
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .rightbar-section h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--text2);
+      margin-bottom: 10px;
+    }
+    .monitor-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .bar {
+      height: 6px;
+      background: var(--bg3);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .bar-fill {
+      height: 100%;
+      background: var(--green);
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+    .process {
+      display: flex;
+      justify-content: space-between;
+      padding: 3px 0;
+      color: var(--text2);
+    }
+    .process .name { color: var(--text); }
+
+    /* Status bar */
+    .statusbar {
+      grid-column: 1 / -1;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      font-size: 12px;
+      color: var(--text2);
+      gap: 16px;
+    }
+    .statusbar .right { margin-left: auto; display: flex; gap: 16px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: inline-block; }
+
+    /* Responsive - esconde sidebars em telas menores */
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar, .rightbar { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- TOP -->
+    <div class="topbar">
+      <div class="title">LINUX PANEL</div>
+      <div class="tabs">
+        <div class="tab active">Terminal 1</div>
+        <div class="tab">+</div>
+      </div>
+      <div class="stats">
+        <span>CPU <span class="val" id="cpu">—</span></span>
+        <span>RAM <span class="val" id="ram">—</span></span>
+        <span>UPTIME <span class="val" id="uptime">—</span></span>
+      </div>
+    </div>
+
+    <!-- LEFT SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <h3>Explorer</h3>
+        <div class="tree">
+          <div class="tree-item folder">📁 home</div>
+          <div class="tree-item folder" style="padding-left:18px">📁 user</div>
+          <div class="tree-item file" style="padding-left:30px">📄 .bashrc</div>
+          <div class="tree-item file" style="padding-left:30px">📄 .profile</div>
+          <div class="tree-item folder" style="padding-left:18px">📁 projects</div>
+          <div class="tree-item folder">📁 etc</div>
+          <div class="tree-item folder">📁 var</div>
+          <div class="tree-item folder">📁 usr</div>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <h3>Favorites</h3>
+        <div class="tree">
+          <div class="tree-item file">⭐ .bashrc</div>
+          <div class="tree-item file">⭐ install.sh</div>
+        </div>
+      </div>
+      <div class="sidebar-section" style="flex:1">
+        <h3>Sessions</h3>
+        <div class="tree">
+          <div class="tree-item active">● Local (default)</div>
+          <div class="tree-item">○ Kali Linux</div>
+          <div class="tree-item">○ Ubuntu Server</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN TERMINAL -->
+    <div class="main">
+      <div id="terminal"></div>
+      <div class="term-bottom">
+        <div class="key" data-key="Escape">ESC</div>
+        <div class="key" data-key="Control">CTRL</div>
+        <div class="key" data-key="Alt">ALT</div>
+        <div class="key" data-key="Tab">TAB</div>
+        <div class="key" data-key="Home">HOME</div>
+        <div class="key" data-key="ArrowUp">↑</div>
+        <div class="key" data-key="ArrowDown">↓</div>
+        <div class="key" data-key="ArrowLeft">←</div>
+        <div class="key" data-key="ArrowRight">→</div>
+        <div class="key" data-key="End">END</div>
+      </div>
+    </div>
+
+    <!-- RIGHT SIDEBAR -->
+    <div class="rightbar">
+      <div class="rightbar-section">
+        <h3>System Monitor</h3>
+        <div class="monitor-row"><span>CPU</span><span id="cpu2">—</span></div>
+        <div class="bar"><div class="bar-fill" id="cpu-bar" style="width:0%"></div></div>
+        <div class="monitor-row" style="margin-top:10px"><span>Memory</span><span id="mem2">—</span></div>
+        <div class="bar"><div class="bar-fill" id="mem-bar" style="width:0%;background:var(--blue)"></div></div>
+      </div>
+      <div class="rightbar-section">
+        <h3>Processes</h3>
+        <div class="process"><span class="name">node</span><span>server</span></div>
+        <div class="process"><span class="name">bash</span><span>shell</span></div>
+        <div class="process"><span class="name">sshd</span><span>—</span></div>
+      </div>
+      <div class="rightbar-section">
+        <h3>Shortcuts</h3>
+        <div class="process"><span>New Terminal</span><span>Ctrl+T</span></div>
+        <div class="process"><span>Clear</span><span>Ctrl+L</span></div>
+        <div class="process"><span>Settings</span><span>Ctrl+,</span></div>
+      </div>
+    </div>
+
+    <!-- STATUS BAR -->
+    <div class="statusbar">
+      <span><span class="dot"></span> Connected</span>
+      <span>bash</span>
+      <span>UTF-8</span>
+      <div class="right">
+        <span id="cols-rows">80×24</span>
+        <span>Terminal Codex 1.0</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.min.js"></script>
+  <script>
+    const term = new Terminal({
+      cursorBlink: true,
+      fontFamily: "'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace",
+      fontSize: 14,
+      theme: {
+        background: '#0d1117',
+        foreground: '#c9d1d9',
+        cursor: '#58a6ff',
+        selectionBackground: '#264f78',
+        black: '#484f58', red: '#ff7b72', green: '#3fb950',
+        yellow: '#d29922', blue: '#58a6ff', magenta: '#bc8cff',
+        cyan: '#39c5cf', white: '#b1bac4',
+        brightBlack: '#6e7681', brightRed: '#ffa198', brightGreen: '#56d364',
+        brightYellow: '#e3b341', brightBlue: '#79c0ff', brightMagenta: '#d2a8ff',
+        brightCyan: '#56d4dd', brightWhite: '#f0f6fc'
+      },
+      allowProposedApi: true,
+      scrollback: 10000
+    });
+
+    const fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+    term.loadAddon(new WebLinksAddon.WebLinksAddon());
+    term.open(document.getElementById('terminal'));
+    fitAddon.fit();
+
+    // WebSocket real
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${protocol}//${location.host}`);
+
+    ws.onopen = () => {
+      term.writeln('\x1b[1;32m[+] Conectado ao shell real\x1b[0m');
+      term.writeln('');
+      // envia resize inicial
+      ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+    };
+
+    ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data);
+        if (msg.type === 'output') term.write(msg.data);
+      } catch {
+        term.write(ev.data);
+      }
+    };
+
+    ws.onclose = () => {
+      term.writeln('\r\n\x1b[1;31m[!] Conexão perdida. Reinicie o server.\x1b[0m');
+    };
+
+    term.onData(data => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'input', data }));
+      }
+    });
+
+    // Teclas virtuais
+    document.querySelectorAll('.key').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.key;
+        // Mapeia teclas especiais
+        const map = {
+          Escape: '\x1b',
+          Control: '', // só marca
+          Alt: '',
+          Tab: '\t',
+          Home: '\x1b[H',
+          End: '\x1b[F',
+          ArrowUp: '\x1b[A',
+          ArrowDown: '\x1b[B',
+          ArrowLeft: '\x1b[D',
+          ArrowRight: '\x1b[C'
+        };
+        if (map[key] !== undefined && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'input', data: map[key] }));
+          term.focus();
+        }
+      });
+    });
+
+    // Resize
+    window.addEventListener('resize', () => {
+      fitAddon.fit();
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+      }
+      document.getElementById('cols-rows').textContent = `${term.cols}×${term.rows}`;
+    });
+
+    // System info polling
+    async function updateSystem() {
+      try {
+        const res = await fetch('/api/system');
+        const data = await res.json();
+        const memPercent = Math.round((data.usedMem / data.totalMem) * 100);
+        const load = data.loadavg[0].toFixed(1);
+
+        document.getElementById('cpu').textContent = load;
+        document.getElementById('cpu2').textContent = load;
+        document.getElementById('cpu-bar').style.width = Math.min(load * 20, 100) + '%';
+
+        document.getElementById('ram').textContent = memPercent + '%';
+        document.getElementById('mem2').textContent = memPercent + '%';
+        document.getElementById('mem-bar').style.width = memPercent + '%';
+
+        const up = Math.floor(data.uptime);
+        const h = Math.floor(up / 3600);
+        const m = Math.floor((up % 3600) / 60);
+        document.getElementById('uptime').textContent = `${h}h ${m}m`;
+      } catch {}
+    }
+    updateSystem();
+    setInterval(updateSystem, 3000);
+
+    term.focus();
+  </script>
+</body>
+</html>
